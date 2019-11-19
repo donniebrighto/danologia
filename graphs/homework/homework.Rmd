@@ -1,0 +1,160 @@
+---
+title: "Computational Social Science - homework"
+output: html_notebook
+---
+
+I Grafy losowe (Erdős-Rényi)
+1.	Wygeneruj sieć Erdős-Rényi o stu wierzchołkach i prawdopodobieństwie krawędzi = 0.05.
+2.	Wydrukuj podsumowanie grafu - czy graf jest ważony?
+3.	Wylistuj wszystkie wierzchołki i krawędzie.
+4.	Ustaw wagi wszystkich krawędzi na losowe z zakresu 0.01 do 1
+5.	Wydrukuj ponownie podsumowanie grafu - czy teraz graf jest ważony?
+6.	Jaki jest stopień każdego węzła? Następnie stwórz histogram stopni węzłów.
+7.	Ile jest klastrów (connected components) w grafie?
+8.	Zwizualizuj graf w taki sposób, aby rozmiar węzłów odpowiadał mierze PageRank.
+
+
+```{r}
+# I.1
+g <- erdos.renyi.game(p.or.m=0.05, n=100)
+
+# I.2
+summary(g)
+
+```
+
+Zgodnie z wynikiem funkcji summary graf nie jest ważony
+O tym czy graf jest ważony mówi 3. litera w 4 literowym kodzie, gdzie:
+W - graf ważony
+- - graf nieważony
+```{r}
+# I.3
+V(g)
+E(g)
+
+# I.4
+E(g)$weight <- runif(length(E(g)), 0.01, 1)
+
+# I.5
+summary(g)
+```
+Tak, teraz graf jest ważony : IGRAPH 88e821f U-W-
+```{r}
+# I.6
+degree(g)
+hist(degree(g))
+```
+```{r}
+# I.7
+clusters(g)
+```
+Zgodnie z wynikiem funkcji clusters jest jeden klaster, do którego należą wszystkie wierzchołki.
+```{r}
+# I.8
+pr <- page.rank(g)$vector
+
+plot(g, vertex.size=pr*300,
+     vertex.label=NA, edge.arrow.size=.2)
+```
+
+II Grafy preferential attachment (Barabási-Albert)
+1.	Wygeneruj graf wedle modelu Barabási-Albert z tysiącem węzłów
+2.	Zwizualizuj graf layoutem Fruchterman & Reingold
+3.	Znajdź najbardziej centralny węzeł według miary betweenness, jaki ma numer?
+4.	Jaka jest średnica grafu?
+5.	W komentarzu napisz czym różnią się grafy Barabási-Albert i Erdős-Rényi.
+
+```{r}
+# II.1
+g <- barabasi.game(1000)
+
+# II.2
+layout <- layout.fruchterman.reingold(g)
+plot(g, layout=layout, vertex.size=2,
+     vertex.label=NA, edge.arrow.size=.2)
+```
+
+```{r}
+# II.3
+V(g)[betweenness(g)==max(betweenness(g))]
+```
+Najbardziej centralny węzeł ma numer 5.
+
+```{r}
+# II.4
+diameter(g)
+```
+```{r}
+# II.5
+```
+
+III Rozprzestrzenianie się informacji w sieciach - dane rzeczywiste
+
+1.	Pobierz zbiór danych http://konect.uni-koblenz.de/networks/radoslaw_email (Downloads, pierwszy od góry, rozpakowany tutaj: https://www.ii.pwr.edu.pl/~michalski/tmp/out.radoslaw_email_email)
+
+2.	Zaimportuj zbiór out.radoslaw_email_email do data.frame i zachowaj tylko pierwsze dwie kolumny 
+(dodatkowo przeskocz dwa pierwsze wiersze), następnie stwórz z tego data frame'a graf.
+
+3.	Użyj funkcji simplify aby pozbyć się wielokrotnych krawędzi i pętli. Zweryfikuj czy po tej operacji Twój graf ma 167 węzłów i 5783 krawędzie. Jeśli tak jest, możesz kontynuować.
+
+4.	Zasymuluj proces rozprzestrzeniania się informacji w grafie wedle następującego algorytmu:
+•	ustaw wszystkim węzłom atrybut activated na FALSE
+•	następnie wylosuj jeden węzeł z grafu i ustaw mu atrybut activated na TRUE
+•	rozpocznij proces rozprzestrzeniania się informacji w grafie (10 przebiegów):
+węzeł, który jest aktywowany, aktywuje wszystkich swoich sąsiadów (użyj atrybutu pomocniczego aby w danej iteracji nie aktywować sąsiadów węzła, który został aktywowany w tej samej iteracji)
+•	po każdej iteracji zapisz liczbę aktywowanych węzłów w grafie a także grafikę pokazującą, które węzły zostały aktywowane (funkcja plot na obiekcie graf)
+
+5.	Wykonaj powyższy eksperyment dla pięciu różnych węzłów początkowych, w tym dla najbardziej centralnego węzła wedle metody betweenness.
+
+6.	Zapisz wynik wszystkich przebiegów w jednym data frame i w pliku, który także dołącz do sprawozdania.
+
+
+```{r}
+dfGraph <- read.csv2("out.radoslaw_email_email", skip=2, sep= " ")[, 1:2]
+g <- graph.data.frame(dfGraph)
+g <- simplify(g)
+summary(g)
+```
+
+```{r}
+setup <- function (graph, start_vertex_index) {
+  V(graph)$activated = F
+  V(graph)$color = 'red'
+  V(graph)[start_vertex_index]$activated = T
+  V(graph)[start_vertex_index]$color = 'green'
+  return (graph)
+}
+
+activate_neighbors <- function (active_vertices, graph) {
+  activated_count <- 0
+  for(v in active_vertices) {
+    neighbours <- neighbors(graph, v)
+    activated_count = activated_count + length(neighbours[activated == F])
+    V(graph)[neighbours]$activated = T
+    V(graph)[neighbours]$color = 'green'
+  }
+  print(activated_count)
+  return (graph)
+}
+
+simulate_propagation <- function (number_of_iterations, graph) {
+  for(i in 1:number_of_iterations) {
+    active <- V(graph)[activated == T]
+    graph <- activate_neighbors(active, graph)
+    plot(graph, vertex.color=V(graph)$color)
+  }
+}
+
+
+rand_indices = sample(1:100, 4)
+for (r in rand_indices) {
+  g <- setup(g, r)
+  simulate_propagation(10, g)
+}
+
+
+g <- setup(g, betweenness(g)==max(betweenness(g)))
+simulate_propagation(10, g)
+
+```
+
