@@ -86,6 +86,7 @@ diameter(g)
 ```
 ```{r}
 # II.5
+# Graf Barabási-Albert reprezentuje sieć rosnącą, a graf Erdős-Rényi sieć jednorodną.
 ```
 
 III Rozprzestrzenianie się informacji w sieciach - dane rzeczywiste
@@ -152,7 +153,7 @@ for (r in rand_indices) {
   simulate_propagation(10, g)
 }
 
-
+print('Najbardziej centralny: ')
 g <- setup(g, betweenness(g)==max(betweenness(g)))
 simulate_propagation(10, g)
 
